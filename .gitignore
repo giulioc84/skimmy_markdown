@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Xcode / Swift build artifacts
+.build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+
+# Generic build output
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Editor / OS cruft
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs (from unrelated tooling / debug output)
+*.log
+
+# Secrets (defensive — nothing committed today uses these)
+*.p12
+*.p8
+*.mobileprovision

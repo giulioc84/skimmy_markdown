@@ -1,0 +1,29 @@
+name: Skimmy
+options:
+  bundleIdPrefix: com.giulio
+  deploymentTarget:
+    macOS: "26.0"
+  xcodeVersion: "26.0"
+
+targets:
+  Skimmy:
+    type: application
+    platform: macOS
+    sources:
+      - Skimmy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.giulio.Skimmy
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        INFOPLIST_FILE: Skimmy/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+      configs:
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: -O
+          SWIFT_COMPILATION_MODE: wholemodule
