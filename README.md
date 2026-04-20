@@ -13,7 +13,7 @@
 
 Skimmy is a minimal, native macOS editor for `.md` files. Unlike Electron-based
 editors, it uses AppKit's `NSTextView` for the editor and `WKWebView` for the
-preview — so it launches instantly, scrolls smoothly, and feels at home on macOS.
+preview, so it launches instantly, scrolls smoothly, and feels at home on macOS.
 
 No tabs, no plugins, no cloud. Open a file, write markdown, see it rendered.
 
