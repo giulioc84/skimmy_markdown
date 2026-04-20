@@ -17,7 +17,21 @@ preview — so it launches instantly, scrolls smoothly, and feels at home on mac
 
 No tabs, no plugins, no cloud. Open a file, write markdown, see it rendered.
 
-*(Screenshot coming soon.)*
+![Skimmy preview mode](docs/screenshot-preview.png)
+
+### Navigator
+
+The sidebar (`⇧⌘L`) gives you a heading outline *and* a link index — click any
+entry to jump straight there.
+
+![Skimmy sidebar with heading outline](docs/screenshot-sidebar.png)
+
+### Editor
+
+Toggle to edit mode with `⌘E`. Monospaced, native undo/redo, no auto-correct
+surprises.
+
+![Skimmy editor mode](docs/screenshot-editor.png)
 
 ## Features
 
