@@ -1,23 +1,41 @@
-.PHONY: generate build install clean sign
+.PHONY: generate build install clean sign notarize
 
 BUILD_DIR = .build
 APP_NAME = Skimmy
 INSTALL_DIR = /Applications
 
-# Code-signing identity.
+# -----------------------------------------------------------------------------
+# Code-signing identity
+# -----------------------------------------------------------------------------
+# Auto-detect, preferring a Developer ID Application cert (distribution-grade,
+# Gatekeeper-accepted, notarizable) over an Apple Development cert (local dev
+# only). Override via environment:
 #
-# By default we auto-detect the first "Apple Development" certificate in your
-# keychain — so `make install` works on any machine that has an Apple ID signed
-# into Xcode, without editing this file.
-#
-# Override via the environment:
 #   SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" make install
 #   SIGN_IDENTITY=<sha1-hash>                                    make install
 #   SIGN_IDENTITY=-                                              make install   # ad-hoc / unsigned
 #
 # List installed identities with:
 #   security find-identity -v -p codesigning
-SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '/Apple Development:/ {print $$2; exit}')
+SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '\
+	/Developer ID Application:/ {devid = $$2} \
+	/Apple Development:/         {appdev = $$2} \
+	END { if (devid) print devid; else if (appdev) print appdev }')
+
+# -----------------------------------------------------------------------------
+# Notarization (optional, only meaningful with a Developer ID cert)
+# -----------------------------------------------------------------------------
+# `make notarize` expects a keychain profile created once via:
+#   xcrun notarytool store-credentials "$(NOTARY_PROFILE)" \
+#       --apple-id "you@example.com" \
+#       --team-id  "TEAMID" \
+#       --password "app-specific-password"
+NOTARY_PROFILE ?= SKIMMY_NOTARY
+NOTARIZE_ZIP    = /tmp/$(APP_NAME)-notarize.zip
+
+# -----------------------------------------------------------------------------
+# Targets
+# -----------------------------------------------------------------------------
 
 generate:
 	xcodegen generate
@@ -40,22 +58,51 @@ install: build
 
 sign:
 	@if [ -z "$(SIGN_IDENTITY)" ]; then \
-		echo "error: no Apple Development certificate found in your keychain."; \
-		echo "       Install one via Xcode → Settings → Accounts → [+] → Apple ID,"; \
-		echo "       then let Xcode create a development certificate for your team."; \
-		echo ""; \
-		echo "       Alternatively, override the identity explicitly:"; \
-		echo "         SIGN_IDENTITY=\"<full-name-or-sha1>\" make install"; \
-		echo "       Or build unsigned (Gatekeeper will warn on every open):"; \
-		echo "         SIGN_IDENTITY=- make install"; \
+		echo "error: no signing certificate found in your keychain."; \
+		echo "       Install one via Xcode → Settings → Accounts → Manage Certificates,"; \
+		echo "       or override with: SIGN_IDENTITY=\"<full-name-or-sha1>\" make install"; \
+		echo "       Build unsigned (ad-hoc) with: SIGN_IDENTITY=- make install"; \
 		exit 1; \
 	fi
 	@echo "Signing $(INSTALL_DIR)/$(APP_NAME).app with: $(SIGN_IDENTITY)"
+	@# --timestamp (with a real RFC3161 server) is REQUIRED for notarization.
+	@# --options runtime enables the hardened runtime, also required.
 	codesign --force --deep --sign "$(SIGN_IDENTITY)" \
 		--options runtime \
-		--timestamp=none \
+		--timestamp \
 		"$(INSTALL_DIR)/$(APP_NAME).app"
 	@codesign -dv --verbose=2 "$(INSTALL_DIR)/$(APP_NAME).app" 2>&1 | grep -E "Authority|Identifier|TeamIdentifier" || true
+
+# Notarize the currently-installed app and staple the ticket.
+# Requires: 1) a Developer ID Application cert, 2) a `NOTARY_PROFILE` created
+# via `xcrun notarytool store-credentials` (see README).
+notarize:
+	@case "$(SIGN_IDENTITY)" in \
+		"Developer ID Application:"*) ;; \
+		*) echo "error: notarization requires a 'Developer ID Application' certificate."; \
+		   echo "       Current SIGN_IDENTITY is: $(SIGN_IDENTITY)"; \
+		   echo "       Create one via Xcode → Settings → Accounts → Manage Certificates."; \
+		   exit 1 ;; \
+	esac
+	@if ! xcrun notarytool history --keychain-profile "$(NOTARY_PROFILE)" >/dev/null 2>&1; then \
+		echo "error: notarytool profile '$(NOTARY_PROFILE)' not found in keychain."; \
+		echo "       Create it once with:"; \
+		echo "         xcrun notarytool store-credentials \"$(NOTARY_PROFILE)\" \\"; \
+		echo "           --apple-id \"you@example.com\" \\"; \
+		echo "           --team-id  \"TEAMID\" \\"; \
+		echo "           --password \"app-specific-password\""; \
+		echo "       Generate the app-specific password at https://appleid.apple.com/account/manage"; \
+		exit 1; \
+	fi
+	@echo "Zipping $(APP_NAME).app for submission…"
+	/usr/bin/ditto -c -k --keepParent "$(INSTALL_DIR)/$(APP_NAME).app" "$(NOTARIZE_ZIP)"
+	@echo "Submitting to Apple's notarization service (takes 1–5 minutes)…"
+	xcrun notarytool submit "$(NOTARIZE_ZIP)" --keychain-profile "$(NOTARY_PROFILE)" --wait
+	@echo "Stapling ticket…"
+	xcrun stapler staple "$(INSTALL_DIR)/$(APP_NAME).app"
+	xcrun stapler validate "$(INSTALL_DIR)/$(APP_NAME).app"
+	@rm -f "$(NOTARIZE_ZIP)"
+	@echo "$(APP_NAME) is signed, notarized, and stapled. Gatekeeper will accept it on any Mac."
 
 clean:
 	rm -rf $(BUILD_DIR) $(APP_NAME).xcodeproj

@@ -4,8 +4,13 @@
 
 [![macOS](https://img.shields.io/badge/macOS-26.0%2B-blue)]()
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-lightgrey)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4)](https://github.com/sponsors/giulioc84)
+
+> **Source-available, not open-source.** The code is published so you can
+> read, audit, and file precise bug reports. It is **not licensed** for reuse,
+> forking, or redistribution. See [`LICENSE`](LICENSE) and
+> [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
@@ -160,4 +165,11 @@ Every bit helps keep the app maintained.
 
 ## License
 
-[MIT](LICENSE). Third-party attributions in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+**Proprietary — All Rights Reserved.** See [`LICENSE`](LICENSE).
+
+The source code in this repository is not open-source. The compiled Skimmy
+application is distributed via the Mac App Store and/or GitHub Releases under
+a separate end-user license agreement.
+
+Third-party components included in builds (see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md))
+remain under their original licenses.

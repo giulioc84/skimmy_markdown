@@ -1,8 +1,7 @@
 # Third-Party Notices
 
-Skimmy bundles the following third-party software. Their respective licenses are
-reproduced below. Skimmy itself is distributed under the MIT License — see
-[`LICENSE`](LICENSE).
+Skimmy bundles the following third-party software. Their respective licenses
+are reproduced below. Skimmy itself is proprietary — see [`LICENSE`](LICENSE).
 
 ---
 
