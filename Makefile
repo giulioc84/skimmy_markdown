@@ -4,9 +4,20 @@ BUILD_DIR = .build
 APP_NAME = Skimmy
 INSTALL_DIR = /Applications
 
-# Apple Development certificate SHA-1 hash for code signing.
-# Get with: security find-identity -v -p codesigning
-SIGN_IDENTITY = 0352EC6FC385D5F028F8D600400F7E554340D963
+# Code-signing identity.
+#
+# By default we auto-detect the first "Apple Development" certificate in your
+# keychain — so `make install` works on any machine that has an Apple ID signed
+# into Xcode, without editing this file.
+#
+# Override via the environment:
+#   SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" make install
+#   SIGN_IDENTITY=<sha1-hash>                                    make install
+#   SIGN_IDENTITY=-                                              make install   # ad-hoc / unsigned
+#
+# List installed identities with:
+#   security find-identity -v -p codesigning
+SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '/Apple Development:/ {print $$2; exit}')
 
 generate:
 	xcodegen generate
@@ -28,13 +39,23 @@ install: build
 	@echo "Installed $(APP_NAME) to $(INSTALL_DIR)"
 
 sign:
-	@echo "Signing $(INSTALL_DIR)/$(APP_NAME).app with Apple Development certificate..."
-	codesign --force --deep --sign $(SIGN_IDENTITY) \
+	@if [ -z "$(SIGN_IDENTITY)" ]; then \
+		echo "error: no Apple Development certificate found in your keychain."; \
+		echo "       Install one via Xcode → Settings → Accounts → [+] → Apple ID,"; \
+		echo "       then let Xcode create a development certificate for your team."; \
+		echo ""; \
+		echo "       Alternatively, override the identity explicitly:"; \
+		echo "         SIGN_IDENTITY=\"<full-name-or-sha1>\" make install"; \
+		echo "       Or build unsigned (Gatekeeper will warn on every open):"; \
+		echo "         SIGN_IDENTITY=- make install"; \
+		exit 1; \
+	fi
+	@echo "Signing $(INSTALL_DIR)/$(APP_NAME).app with: $(SIGN_IDENTITY)"
+	codesign --force --deep --sign "$(SIGN_IDENTITY)" \
 		--options runtime \
 		--timestamp=none \
 		"$(INSTALL_DIR)/$(APP_NAME).app"
-	@echo "Signature:"
-	@codesign -dv --verbose=2 "$(INSTALL_DIR)/$(APP_NAME).app" 2>&1 | grep -E "Authority|Identifier|TeamIdentifier"
+	@codesign -dv --verbose=2 "$(INSTALL_DIR)/$(APP_NAME).app" 2>&1 | grep -E "Authority|Identifier|TeamIdentifier" || true
 
 clean:
 	rm -rf $(BUILD_DIR) $(APP_NAME).xcodeproj

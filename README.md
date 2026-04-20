@@ -105,16 +105,28 @@ Available `make` targets:
 
 ### Code signing
 
-The `Makefile` signs the installed app with the **Apple Development** certificate
-whose SHA-1 is configured in `Makefile` as `SIGN_IDENTITY`. Change this to match
-the certificate on your machine — list yours with:
+`make install` auto-detects the first **Apple Development** certificate in your
+keychain and signs the installed app with it. If you have an Apple ID signed
+into Xcode, this just works — no Makefile edits needed.
+
+To override the identity:
+
+```sh
+# Use a specific certificate by full name or SHA-1 hash
+SIGN_IDENTITY="Apple Development: Jane Doe (ABCD123456)" make install
+
+# Build unsigned (Gatekeeper will warn on every open — fine for local testing)
+SIGN_IDENTITY=- make install
+```
+
+List your installed signing identities with:
 
 ```sh
 security find-identity -v -p codesigning
 ```
 
-For App Store / broader distribution, replace the identity with an **Apple
-Developer ID Application** certificate and add a notarization step.
+For App Store or wider distribution, set `SIGN_IDENTITY` to an **Apple Developer
+ID Application** certificate and add a notarization step (`xcrun notarytool`).
 
 ## Project layout
 
