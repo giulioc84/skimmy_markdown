@@ -1,4 +1,4 @@
-.PHONY: generate build install clean sign notarize
+.PHONY: generate build install clean sign notarize release
 
 BUILD_DIR = .build
 APP_NAME = Skimmy
@@ -32,6 +32,16 @@ SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '\
 #       --password "app-specific-password"
 NOTARY_PROFILE ?= SKIMMY_NOTARY
 NOTARIZE_ZIP    = /tmp/$(APP_NAME)-notarize.zip
+
+# -----------------------------------------------------------------------------
+# Release
+# -----------------------------------------------------------------------------
+# `make release`                  — uses the version in project.yml
+# `make release VERSION=1.0.1`    — bumps project.yml first, then releases
+#
+# Produces `dist/$(APP_NAME)-<version>.zip` — signed, notarized, stapled,
+# ready to upload to your website.
+DIST_DIR = dist
 
 # -----------------------------------------------------------------------------
 # Targets
@@ -104,5 +114,36 @@ notarize:
 	@rm -f "$(NOTARIZE_ZIP)"
 	@echo "$(APP_NAME) is signed, notarized, and stapled. Gatekeeper will accept it on any Mac."
 
+# Build + sign + notarize + staple + zip, producing a distributable artifact
+# under dist/. Pass VERSION=x.y.z to bump project.yml first.
+release:
+	@# If VERSION was passed, validate and apply it to project.yml BEFORE building.
+	@if [ -n "$(VERSION)" ]; then \
+		if ! echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+			echo "error: VERSION must be SemVer (MAJOR.MINOR.PATCH). Got: $(VERSION)"; \
+			exit 1; \
+		fi; \
+		echo "Bumping project.yml → $(VERSION)"; \
+		sed -i '' 's/MARKETING_VERSION: ".*"/MARKETING_VERSION: "$(VERSION)"/' project.yml; \
+		sed -i '' 's/CURRENT_PROJECT_VERSION: ".*"/CURRENT_PROJECT_VERSION: "$(VERSION)"/' project.yml; \
+	fi
+	@$(MAKE) install
+	@$(MAKE) notarize
+	@mkdir -p $(DIST_DIR)
+	@RELEASE_VERSION=$$(awk '/MARKETING_VERSION:/ {gsub(/"/,""); print $$2}' project.yml); \
+	  ZIP="$(DIST_DIR)/$(APP_NAME)-$$RELEASE_VERSION.zip"; \
+	  rm -f "$$ZIP"; \
+	  /usr/bin/ditto -c -k --keepParent "$(INSTALL_DIR)/$(APP_NAME).app" "$$ZIP"; \
+	  SIZE=$$(ls -lh "$$ZIP" | awk '{print $$5}'); \
+	  echo ""; \
+	  echo "✅ Release ready: $$ZIP ($$SIZE)"; \
+	  echo ""; \
+	  echo "Suggested next steps:"; \
+	  echo "   1. Move CHANGELOG.md [Unreleased] entries under [$$RELEASE_VERSION] - $$(date +%Y-%m-%d)"; \
+	  echo "   2. git commit -am \"Release $$RELEASE_VERSION\""; \
+	  echo "   3. git tag -a v$$RELEASE_VERSION -m \"Skimmy $$RELEASE_VERSION\""; \
+	  echo "   4. git push origin main v$$RELEASE_VERSION"; \
+	  echo "   5. Upload $$ZIP to your website"
+
 clean:
-	rm -rf $(BUILD_DIR) $(APP_NAME).xcodeproj
+	rm -rf $(BUILD_DIR) $(APP_NAME).xcodeproj $(DIST_DIR)

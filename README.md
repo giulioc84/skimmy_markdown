@@ -97,13 +97,29 @@ open -a Skimmy
 
 Available `make` targets:
 
-| Target         | Purpose                                    |
-| -------------- | ------------------------------------------ |
-| `make generate`| Produce `.xcodeproj` via XcodeGen          |
-| `make build`   | Build Release configuration                |
-| `make install` | Build + sign + copy to `/Applications`     |
-| `make sign`    | Re-sign `/Applications/Skimmy.app`         |
-| `make clean`   | Delete `.build/` and `.xcodeproj`          |
+| Target         | Purpose                                                                   |
+| -------------- | ------------------------------------------------------------------------- |
+| `make generate`| Produce `.xcodeproj` via XcodeGen                                         |
+| `make build`   | Build Release configuration                                               |
+| `make install` | Build + sign + copy to `/Applications`                                    |
+| `make sign`    | Re-sign `/Applications/Skimmy.app`                                        |
+| `make notarize`| Submit to Apple, wait, and staple the ticket                              |
+| `make release` | `install` + `notarize` + zip into `dist/Skimmy-<ver>.zip` (shippable)     |
+| `make clean`   | Delete `.build/`, `.xcodeproj`, and `dist/`                               |
+
+### Cutting a release
+
+```sh
+# Bump to a new version and produce a shippable zip in one command
+make release VERSION=1.0.1
+
+# Or, if you've already bumped project.yml manually:
+make release
+```
+
+`make release` takes 5–90 minutes — most of it is Apple's notarization queue.
+The final artifact (`dist/Skimmy-<ver>.zip`) is signed, notarized, and stapled —
+upload it directly to your website's download page.
 
 ### Code signing
 

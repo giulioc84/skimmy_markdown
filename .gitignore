@@ -15,6 +15,7 @@ Packages/
 
 # Generic build output
 build/
+dist/
 *.ipa
 *.dSYM.zip
 *.dSYM
