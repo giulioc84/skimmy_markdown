@@ -32,3 +32,6 @@ build/
 *.p12
 *.p8
 *.mobileprovision
+
+# Claude Code / tooling local state
+.claude/
