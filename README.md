@@ -74,16 +74,13 @@ surprises.
 | `⌘=`/`⌘-` | Increase / decrease font  |
 | `⌘0`      | Reset font size           |
 
-## Install (from Releases)
+## Install
 
-> First release will be cut soon. Until then, please use **Build from source** below.
+The compiled Skimmy app will be distributed from the author's website (coming
+soon). In the meantime — or if you prefer — you can build from source below.
 
-1. Download `Skimmy.app.zip` from the latest [release](https://github.com/giulioc84/skimmy_markdown/releases).
-2. Unzip and drag `Skimmy.app` into `/Applications`.
-3. Because Skimmy is signed with an **Apple Development** certificate (not a paid
-   Developer ID), macOS will show *"Skimmy cannot be opened because the developer
-   cannot be verified"* on first launch.
-   **Right-click → Open → Open** once; it won't ask again.
+Skimmy releases are signed with an **Apple Developer ID** certificate and
+**notarized by Apple**, so macOS opens them cleanly without Gatekeeper warnings.
 
 ## Build from source
 
@@ -153,6 +150,19 @@ Skimmy/
 
 See [`CLAUDE.md`](CLAUDE.md) for architectural notes and key implementation patterns.
 
+## Versioning
+
+Skimmy follows [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
+
+| Segment | Bumped when… |
+|---|---|
+| **MAJOR** (`x`.y.z) | Breaking changes, significant redesigns, incompatible reworks |
+| **MINOR** (x.`y`.z) | New features, small additions, backwards-compatible changes |
+| **PATCH** (x.y.`z`) | Bug fixes, typo corrections, internal cleanup with no behavior change |
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full version history. The current
+version ships in `project.yml` as `MARKETING_VERSION`.
+
 ## Contributing
 
 This is a personal project; the repo is private and not currently accepting PRs.
@@ -168,8 +178,8 @@ Every bit helps keep the app maintained.
 **Proprietary — All Rights Reserved.** See [`LICENSE`](LICENSE).
 
 The source code in this repository is not open-source. The compiled Skimmy
-application is distributed via the Mac App Store and/or GitHub Releases under
-a separate end-user license agreement.
+application is distributed via the author's website (and potentially the
+Mac App Store in the future) under a separate end-user license agreement.
 
 Third-party components included in builds (see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md))
 remain under their original licenses.
