@@ -131,23 +131,20 @@ release:
 	@$(MAKE) notarize
 	@mkdir -p $(DIST_DIR)
 	@RELEASE_VERSION=$$(awk '/MARKETING_VERSION:/ {gsub(/"/,""); print $$2}' project.yml); \
-	  VZIP="$(DIST_DIR)/$(APP_NAME)-$$RELEASE_VERSION.zip"; \
-	  SZIP="$(DIST_DIR)/$(APP_NAME).zip"; \
-	  rm -f "$$VZIP" "$$SZIP"; \
-	  /usr/bin/ditto -c -k --keepParent "$(INSTALL_DIR)/$(APP_NAME).app" "$$VZIP"; \
-	  cp "$$VZIP" "$$SZIP"; \
-	  SIZE=$$(ls -lh "$$VZIP" | awk '{print $$5}'); \
+	  ZIP="$(DIST_DIR)/$(APP_NAME).zip"; \
+	  rm -f "$$ZIP"; \
+	  /usr/bin/ditto -c -k --keepParent "$(INSTALL_DIR)/$(APP_NAME).app" "$$ZIP"; \
+	  SIZE=$$(ls -lh "$$ZIP" | awk '{print $$5}'); \
 	  echo ""; \
-	  echo "✅ Release artifacts ready ($$SIZE each):"; \
-	  echo "   $$VZIP   (versioned — archival clarity)"; \
-	  echo "   $$SZIP   (stable name — for the 'latest' website link)"; \
+	  echo "✅ Release artifact ready: $$ZIP ($$SIZE)"; \
+	  echo "   Stable filename — the 'latest download' URL on your website keeps working across versions."; \
 	  echo ""; \
 	  echo "Suggested next steps:"; \
 	  echo "   1. Move CHANGELOG.md [Unreleased] entries under [$$RELEASE_VERSION] - $$(date +%Y-%m-%d)"; \
 	  echo "   2. git commit -am \"Release $$RELEASE_VERSION\""; \
 	  echo "   3. git tag -a v$$RELEASE_VERSION -m \"Skimmy $$RELEASE_VERSION\""; \
 	  echo "   4. git push origin main v$$RELEASE_VERSION"; \
-	  echo "   5. gh release create v$$RELEASE_VERSION \"$$VZIP\" \"$$SZIP\" --title \"Skimmy $$RELEASE_VERSION\" --notes-file CHANGELOG.md"
+	  echo "   5. gh release create v$$RELEASE_VERSION \"$$ZIP\" --title \"Skimmy $$RELEASE_VERSION\" --notes-file CHANGELOG.md"
 
 clean:
 	rm -rf $(BUILD_DIR) $(APP_NAME).xcodeproj $(DIST_DIR)
