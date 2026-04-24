@@ -164,8 +164,6 @@ Skimmy/
 - **WKWebView** + **marked.js** for the preview
 - **XcodeGen** (`project.yml` → `.xcodeproj`)
 
-See [`CLAUDE.md`](CLAUDE.md) for architectural notes and key implementation patterns.
-
 ## Versioning
 
 Skimmy follows [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`.

@@ -36,3 +36,4 @@ dist/
 
 # Claude Code / tooling local state
 .claude/
+CLAUDE.md
