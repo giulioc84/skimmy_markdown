@@ -76,11 +76,20 @@ surprises.
 
 ## Install
 
-The compiled Skimmy app will be distributed from the author's website (coming
-soon). In the meantime — or if you prefer — you can build from source below.
+Grab the **latest signed, notarized build** from the Releases page:
 
-Skimmy releases are signed with an **Apple Developer ID** certificate and
-**notarized by Apple**, so macOS opens them cleanly without Gatekeeper warnings.
+[📥 Download Skimmy.zip (latest)](https://github.com/giulioc84/skimmy_markdown/releases/latest/download/Skimmy.zip)
+
+Or browse all releases: [Releases](https://github.com/giulioc84/skimmy_markdown/releases)
+
+1. Download `Skimmy.zip`.
+2. Unzip (double-click; macOS handles it).
+3. Drag `Skimmy.app` into `/Applications`.
+4. Double-click to launch.
+
+Skimmy is signed with an **Apple Developer ID Application** certificate and
+**notarized by Apple**, so macOS opens it cleanly — no Gatekeeper warnings,
+no right-click-to-Open workaround.
 
 ## Build from source
 
