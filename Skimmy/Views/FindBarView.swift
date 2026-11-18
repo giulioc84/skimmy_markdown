@@ -1,78 +1,58 @@
 import SwiftUI
 
+/// Find bar for Read mode. Matches are highlighted in the page as you type.
 struct FindBarView: View {
-    let scrollProxy: ScrollProxy
-    let onDismiss: () -> Void
-
-    @State private var searchText = ""
+    @ObservedObject var session: DocumentSession
+    @ObservedObject var finder: PreviewFinder
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 12))
 
-            TextField("Find in page", text: $searchText)
+            TextField("Find in document", text: $finder.query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($isFocused)
-                .onSubmit { findNext() }
-                .frame(width: 180)
+                .onSubmit { finder.step(1) }
+                .frame(width: 170)
 
-            Button(action: findPrevious) {
+            Text(finder.summary)
+                .font(.system(size: 11.5))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 56, alignment: .trailing)
+
+            Button { finder.step(-1) } label: {
                 Image(systemName: "chevron.up")
-                    .font(.system(size: 11, weight: .medium))
             }
-            .buttonStyle(.plain)
-            .help("Previous match (Shift Enter)")
+            .help("Previous match (⇧⌘G)")
+            .accessibilityLabel("Previous match")
+            .disabled(finder.count == 0)
 
-            Button(action: findNext) {
+            Button { finder.step(1) } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .medium))
             }
-            .buttonStyle(.plain)
-            .help("Next match (Enter)")
+            .help("Next match (⌘G)")
+            .accessibilityLabel("Next match")
+            .disabled(finder.count == 0)
 
-            Button(action: dismiss) {
+            Button { session.closeFindBar() } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
             .help("Close (Esc)")
+            .accessibilityLabel("Close find")
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .buttonStyle(.plain)
+        .font(.system(size: 11, weight: .semibold))
+        .padding(.leading, 13)
+        .padding(.trailing, 12)
+        .padding(.vertical, 8)
+        .glassEffect(.regular, in: .capsule)
         .onAppear { isFocused = true }
-        .onKeyPress(.escape) {
-            dismiss()
-            return .handled
-        }
-    }
-
-    private func findNext() {
-        guard !searchText.isEmpty else { return }
-        let escaped = searchText.replacingOccurrences(of: "'", with: "\\'")
-        scrollProxy.webView?.evaluateJavaScript(
-            "window.find('\(escaped)', false, false, true);"
-        )
-    }
-
-    private func findPrevious() {
-        guard !searchText.isEmpty else { return }
-        let escaped = searchText.replacingOccurrences(of: "'", with: "\\'")
-        scrollProxy.webView?.evaluateJavaScript(
-            "window.find('\(escaped)', false, true, true);"
-        )
-    }
-
-    private func dismiss() {
-        // Clear selection highlight
-        scrollProxy.webView?.evaluateJavaScript(
-            "window.getSelection().removeAllRanges();"
-        )
-        onDismiss()
+        .onChange(of: session.findFocusRequest) { _, _ in isFocused = true }
+        .onExitCommand { session.closeFindBar() }
     }
 }

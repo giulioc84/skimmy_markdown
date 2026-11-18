@@ -1,0 +1,40 @@
+# Compiles the app on a GitHub-hosted Mac for every pull request, so a change
+# that does not build is caught before it is merged.
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild -version
+          xcodebuild \
+            -project Skimmy.xcodeproj \
+            -scheme Skimmy \
+            -configuration Debug \
+            -derivedDataPath .build \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO \
+            build

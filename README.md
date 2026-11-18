@@ -20,59 +20,79 @@ Skimmy is a minimal, native macOS editor for `.md` files. Unlike Electron-based
 editors, it uses AppKit's `NSTextView` for the editor and `WKWebView` for the
 preview, so it launches instantly, scrolls smoothly, and feels at home on macOS.
 
-No tabs, no plugins, no cloud. Open a file, write markdown, see it rendered.
+No tabs, no plugins, no cloud. Open a file, write markdown, see it rendered
+beside you as you type.
 
 ![Skimmy preview mode](docs/screenshot-preview.png)
 
+### Three ways to look at a file
+
+- **Split** (`⌘2`, the default): editor on the left, live preview on the right.
+  The preview follows the editor as you scroll. Drag the divider to resize.
+- **Read** (`⌘1`): the rendered document only.
+- **Edit** (`⌘3`): the source only, centred at a comfortable line length.
+
+`⌘E` flips between reading and editing.
+
 ### Navigator
 
-The sidebar (`⇧⌘L`) gives you a heading outline *and* a link index — click any
-entry to jump straight there.
+The sidebar (`⇧⌘L`) gives you a heading outline *and* a link index. Click any
+entry to jump straight there; the section you are in is highlighted.
 
 ![Skimmy sidebar with heading outline](docs/screenshot-sidebar.png)
 
 ### Editor
 
-Toggle to edit mode with `⌘E`. Monospaced, native undo/redo, no auto-correct
-surprises.
+Monospaced, native undo/redo, no auto-correct surprises. Return continues
+bullet, numbered and task lists.
 
 ![Skimmy editor mode](docs/screenshot-editor.png)
 
 ## Features
 
 ### Editing
-- Native `NSTextView`-backed editor with full undo/redo and system find bar (`⌘F`)
-- Monospaced fonts with adjustable size (`⌘=`, `⌘-`, `⌘0`), persisted across launches
-- Auto-correct, smart quotes, smart dashes, and link detection explicitly **off** — no markdown-breaking surprises
+- Native `NSTextView`-backed editor with full undo/redo and the system find bar (`⌘F`, replace with `⌥⌘F`)
+- Format menu: Bold (`⌘B`), Italic (`⌘I`), Code (`⇧⌘K`), Link (`⌘K`)
+- Lists continue on Return; Return on an empty item ends the list
+- Adjustable text size (`⌘=`, `⌘-`, `⌘0`), persisted across launches
+- Auto-correct, smart quotes, smart dashes, and link detection explicitly **off**
 
 ### Preview
-- Instant GitHub-flavored rendering via [marked.js](https://github.com/markedjs/marked) inside `WKWebView`
-- Automatic light / dark theme via `prefers-color-scheme`
-- Clickable links open in the default browser (not in-app)
+- GitHub-flavored rendering via [marked.js](https://github.com/markedjs/marked) inside `WKWebView`
+- Incremental: only the blocks you changed are re-rendered, so large files stay live
+- Local images (`![](docs/shot.png)`) and web images both display
+- Automatic light / dark theme
+- Find in Read mode highlights every match and counts them
+- Links open in the default browser; links to other markdown files open in Skimmy
+- Raw HTML in a document cannot run scripts (content security policy)
 
 ### Navigation
 - Toggleable sidebar (`⇧⌘L`) with two tabs:
-  - **Contents** — full H1–H6 outline, click to scroll
-  - **Links** — every inline `[text](url)`, image `![alt](url)`, and autolink `<url>`
-- Debounced parsing on a background thread (300 ms) so large docs stay responsive
+  - **Contents**: full H1–H6 outline, click to jump, current section highlighted
+  - **Links**: every inline `[text](url)`, image `![alt](url)`, and autolink `<url>`
+- Parsing is debounced and runs off the main thread
 
 ### Files & windows
-- Native `DocumentGroup` integration — proper Open / Save / Save As / Recents
+- Native `DocumentGroup` integration: Open / Save / Save As / Duplicate / Revert / Recents
 - Registered as Owner for `.md`, `.markdown`, `.mdown`
-- Welcome screen with up to 10 recent documents
-- Save-confirmation dialog when leaving edit mode with unsaved changes
-- Visual-effect (blur) window background
+- Welcome screen with recent documents
+- macOS 26 Liquid Glass toolbar, sidebar and floating controls
 
 ### Keyboard shortcuts
 
-| Shortcut  | Action                    |
-| --------- | ------------------------- |
-| `⌘E`      | Toggle edit / preview     |
-| `⇧⌘L`     | Toggle sidebar            |
-| `⌘S`      | Save                      |
-| `⌘F`      | Find in editor            |
-| `⌘=`/`⌘-` | Increase / decrease font  |
-| `⌘0`      | Reset font size           |
+| Shortcut          | Action                         |
+| ----------------- | ------------------------------ |
+| `⌘1` / `⌘2` / `⌘3` | Read / Split / Edit            |
+| `⌘E`              | Toggle read / edit             |
+| `⇧⌘L`             | Toggle sidebar                 |
+| `⌘F`              | Find                           |
+| `⌘G` / `⇧⌘G`      | Find next / previous           |
+| `⌥⌘F`             | Find and replace               |
+| `⌘B` / `⌘I`       | Bold / italic                  |
+| `⌘K` / `⇧⌘K`      | Link / inline code             |
+| `⌘=` / `⌘-`       | Larger / smaller text          |
+| `⌘0`              | Reset text size                |
+| `⌘S`              | Save                           |
 
 ## Install
 
@@ -160,10 +180,11 @@ ID Application** certificate and add a notarization step (`xcrun notarytool`).
 ```
 Skimmy/
 ├── App/            # Entry point (SkimmyApp.swift), DocumentGroup, menu commands
-├── Model/          # MarkdownDocument, parsers (headings, links)
-├── Views/          # SwiftUI + NSViewRepresentable wrappers (editor, reader, sidebar)
-├── Utilities/      # Debounced parsing, persisted settings, window helpers
-└── Resources/      # Info.plist, marked.min.js, Assets.xcassets
+├── Model/          # MarkdownDocument, parsers (headings, links), document stats
+├── Views/          # SwiftUI views, plus the editor and preview controllers
+├── Utilities/      # Per-window session, debounced parsing, persisted settings
+└── Resources/      # Info.plist, marked.min.js, preview.js / preview.css, Assets.xcassets
+design/icon/        # App icon sources (SVG)
 ```
 
 ## Tech stack

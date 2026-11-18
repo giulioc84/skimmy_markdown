@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Skimmy app icon. macOS template: 824pt body centred on a 1024pt canvas. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#43D6C4"/>
+      <stop offset="0.55" stop-color="#1596A6"/>
+      <stop offset="1" stop-color="#0A5470"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.28" cy="0.06" r="0.85">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.40"/>
+      <stop offset="0.6" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E3F5F3"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.50"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.18"/>
+    </linearGradient>
+    <filter id="bodyShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <filter id="pageShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#04303F" flood-opacity="0.45"/>
+    </filter>
+    <clipPath id="body"><rect x="100" y="100" width="824" height="824" rx="185.4"/></clipPath>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#bg)" filter="url(#bodyShadow)"/>
+
+  <g clip-path="url(#body)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow)"/>
+    <!-- ripples: the stone has just skimmed past -->
+    <g fill="none" stroke="#FFFFFF" stroke-linecap="round">
+      <ellipse cx="512" cy="872" rx="430" ry="92" stroke-opacity="0.16" stroke-width="10"/>
+      <ellipse cx="512" cy="872" rx="318" ry="62" stroke-opacity="0.20" stroke-width="10"/>
+    </g>
+    <!-- glass sheet behind the page -->
+    <rect x="286" y="212" width="452" height="580" rx="60" fill="url(#sheet)" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="4" transform="rotate(-9 512 502)"/>
+  </g>
+
+  <!-- page -->
+  <rect x="296" y="216" width="432" height="572" rx="58" fill="url(#page)" filter="url(#pageShadow)"/>
+  <rect x="298" y="218" width="428" height="568" rx="56" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+
+  <!-- Markdown mark -->
+  <g stroke="#0A5470" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M362 470 L362 310 L442 400 L522 310 L522 470"/>
+    <path d="M620 310 L620 462"/>
+    <path d="M568 412 L620 468 L672 412"/>
+  </g>
+  <g fill="#8CCBC6">
+    <rect x="352" y="560" width="320" height="26" rx="13"/>
+    <rect x="352" y="622" width="320" height="26" rx="13"/>
+    <rect x="352" y="684" width="210" height="26" rx="13"/>
+  </g>
+</svg>
