@@ -1,6 +1,7 @@
 import Foundation
 
-struct DocumentLink: Identifiable, Equatable {
+struct DocumentLink: Identifiable, Equatable, Sendable {
+    /// "line:column" of the match, unique within a document.
     let id: String
     let text: String
     let url: String
@@ -21,38 +22,34 @@ enum LinkParser {
     }
 
     private static let inlineLinkRegex = makeRegex(#"(!?)\[([^\]]*)\]\(([^)]*)\)"#)
-    private static let autolinkRegex = makeRegex(#"<(https?://[^>]+)>"#)
+    private static let autolinkRegex = makeRegex(#"<(https?://[^>\s]+)>"#)
 
     static func parse(_ markdown: String) -> [DocumentLink] {
-        let lines = markdown.components(separatedBy: .newlines)
         var links: [DocumentLink] = []
         var inFencedBlock = false
-        var occurrences: [String: Int] = [:]
 
-        for (index, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+        for (index, rawLine) in MarkdownLines.split(markdown).enumerated() {
+            let trimmed = rawLine.drop(while: { $0 == " " || $0 == "\t" })
 
-            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+            if MarkdownLines.isFence(trimmed) {
                 inFencedBlock.toggle()
                 continue
             }
             if inFencedBlock { continue }
+            // Most lines hold no link at all; skip the regex work for them.
+            guard rawLine.contains("](") || rawLine.contains("<http") else { continue }
 
-            let range = NSRange(line.startIndex..., in: line)
+            let line = String(rawLine) as NSString
+            let range = NSRange(location: 0, length: line.length)
 
-            let inlineMatches = inlineLinkRegex.matches(in: line, range: range)
-            for match in inlineMatches {
-                let bang = Range(match.range(at: 1), in: line).map { String(line[$0]) } ?? ""
-                let text = Range(match.range(at: 2), in: line).map { String(line[$0]) } ?? ""
-                let url = Range(match.range(at: 3), in: line).map { String(line[$0]) } ?? ""
-                let isImage = bang == "!"
-
-                let key = "\(url)-\(text)-\(isImage)"
-                let occurrence = occurrences[key, default: 0]
-                occurrences[key] = occurrence + 1
+            for match in inlineLinkRegex.matches(in: line as String, range: range) {
+                let isImage = match.range(at: 1).length > 0
+                let text = line.substring(with: match.range(at: 2))
+                let url = destination(from: line.substring(with: match.range(at: 3)))
+                guard !url.isEmpty else { continue }
 
                 links.append(DocumentLink(
-                    id: "\(url)-\(text)-\(isImage)-\(occurrence)",
+                    id: "\(index):\(match.range.location)",
                     text: text,
                     url: url,
                     lineIndex: index,
@@ -60,17 +57,11 @@ enum LinkParser {
                 ))
             }
 
-            let autoMatches = autolinkRegex.matches(in: line, range: range)
-            for match in autoMatches {
-                let url = Range(match.range(at: 1), in: line).map { String(line[$0]) } ?? ""
-
-                let key = "\(url)-\(url)-false"
-                let occurrence = occurrences[key, default: 0]
-                occurrences[key] = occurrence + 1
-
+            for match in autolinkRegex.matches(in: line as String, range: range) {
+                let url = line.substring(with: match.range(at: 1))
                 links.append(DocumentLink(
-                    id: "\(url)-\(url)-false-\(occurrence)",
-                    text: url,
+                    id: "\(index):\(match.range.location)",
+                    text: "",
                     url: url,
                     lineIndex: index,
                     isImage: false
@@ -79,5 +70,14 @@ enum LinkParser {
         }
 
         return links
+    }
+
+    /// `(url "Optional title")` → `url`, with the `<...>` wrapper removed if present.
+    private static func destination(from raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("<"), let close = trimmed.firstIndex(of: ">") {
+            return String(trimmed[trimmed.index(after: trimmed.startIndex)..<close])
+        }
+        return trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" }).first.map(String.init) ?? ""
     }
 }
