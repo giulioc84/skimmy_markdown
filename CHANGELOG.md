@@ -15,6 +15,12 @@ Skimmy follows [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [1.0.1] — 2026-11-21
+
 ### Security
 
 - **Preview no longer runs code from a document.** marked.js does not sanitize
