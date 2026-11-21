@@ -90,7 +90,7 @@ struct SidebarView: View, Equatable {
                     ForEach(links) { link in
                         Button {
                             if let url = URL(string: link.url) {
-                                NSWorkspace.shared.open(url)
+                                MarkdownWebView.openExternally(url)
                             }
                         } label: {
                             HStack(alignment: .top, spacing: 6) {

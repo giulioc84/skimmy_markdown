@@ -15,7 +15,23 @@ Skimmy follows [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Security
+
+- **Preview no longer runs code from a document.** marked.js does not sanitize
+  raw HTML, so a hostile `.md` file could run script in the preview (for example
+  `<img onerror=…>`, or a `</script>` that broke out while the page loaded).
+  The preview now cleans every rendered element against an allowlist, passes
+  document text to the page as a safely encoded string, and sets a per-page
+  Content-Security-Policy that blocks any script other than Skimmy's own.
+- **Links only open web and mail addresses.** Clicking a link in the preview or
+  in the Links sidebar used to hand any URL to macOS, including `file:` paths
+  and other apps' URL schemes. Only `http`, `https` and `mailto` links open now;
+  `#heading` links still scroll within the document.
+
+### Fixed
+
+- Very large documents (hundreds of thousands of paragraphs) render instead of
+  leaving the preview blank.
 
 ---
 
