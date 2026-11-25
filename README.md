@@ -11,9 +11,9 @@
 
 # Skimmy
 
-Skimmy is a native Markdown editor and viewer for macOS. Open a README, a set
-of notes, or a long draft and jump straight to the section you need. Edit right
-on the formatted page or switch to Markdown source whenever you need it.
+**Fast, minimal Markdown editing for Mac.** Skimmy puts the page first, with a
+compact native toolbar and light and dark appearances. Edit directly on the
+formatted page or switch to Markdown source when you want the exact syntax.
 
 <p align="center">
   <a href="https://github.com/giulioc84/skimmy_markdown/releases/latest"><b>Download for Mac</b></a>
@@ -56,7 +56,8 @@ on the formatted page or switch to Markdown source whenever you need it.
 2. Unzip it and drag **Skimmy.app** into **Applications**.
 3. Open Skimmy and press **⌘O** to open a Markdown file.
 
-The download is signed with Apple Developer ID and notarized by Apple.
+The 1.1.0 ZIP is under 1 MB. The app is signed with Apple Developer ID and
+notarized by Apple.
 
 <details>
 <summary>Keyboard shortcuts</summary>
