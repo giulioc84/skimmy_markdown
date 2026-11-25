@@ -10,7 +10,12 @@ targets:
     type: application
     platform: macOS
     sources:
-      - Skimmy
+      - path: Skimmy
+        excludes:
+          - Resources/Skimmy.help
+      - path: Skimmy/Resources/Skimmy.help
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.giulio.Skimmy

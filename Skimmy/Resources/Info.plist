@@ -6,6 +6,8 @@
     <string>Skimmy</string>
     <key>CFBundleDisplayName</key>
     <string>Skimmy</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleVersion</key>
@@ -18,6 +20,10 @@
     <string>$(EXECUTABLE_NAME)</string>
     <key>LSMinimumSystemVersion</key>
     <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+    <key>CFBundleHelpBookFolder</key>
+    <string>Skimmy.help</string>
+    <key>CFBundleHelpBookName</key>
+    <string>com.giulio.Skimmy.help</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
@@ -26,7 +32,7 @@
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
             <key>LSHandlerRank</key>
-            <string>Owner</string>
+            <string>Default</string>
             <key>LSItemContentTypes</key>
             <array>
                 <string>net.daringfireball.markdown</string>

@@ -1,101 +1,244 @@
 import SwiftUI
 import WebKit
 
-class ScrollProxy: ObservableObject {
+final class ScrollProxy {
     weak var webView: WKWebView?
     var isLoaded = false
-    private var pendingScrollID: String?
+    private var pendingJump: (script: String, arguments: [String: Any])?
 
-    func scrollTo(_ headingID: String) {
-        guard !headingID.isEmpty else { return }
-        if isLoaded, let webView = webView {
-            webView.evaluateJavaScript("scrollToHeading(\(MarkdownWebView.jsStringLiteral(headingID)));")
-        } else {
-            pendingScrollID = headingID
-        }
+    func scrollTo(_ heading: DocumentHeading) {
+        jump("scrollToHeading(anchor, occurrence)", arguments: [
+            "anchor": heading.anchor,
+            "occurrence": heading.occurrence
+        ])
     }
 
     func didFinishLoading() {
         isLoaded = true
-        if let scrollID = pendingScrollID {
-            pendingScrollID = nil
-            scrollTo(scrollID)
+        if let pendingJump {
+            self.pendingJump = nil
+            jump(pendingJump.script, arguments: pendingJump.arguments)
+        }
+    }
+
+    func finishEditing(completion: @escaping () -> Void) {
+        guard isLoaded, let webView else {
+            completion()
+            return
+        }
+        webView.evaluateJavaScript("finishEditing()", completionHandler: { _, _ in completion() })
+    }
+
+    func follow(_ destination: String) {
+        if destination.hasPrefix("#") {
+            jump("scrollToFragment(hash)", arguments: ["hash": destination])
+        } else if let url = URL(string: destination) {
+            MarkdownWebView.openExternally(url)
+        }
+    }
+
+    func find(_ query: String, backwards: Bool, completion: @escaping (Bool?) -> Void) {
+        guard isLoaded, let webView else {
+            completion(nil)
+            return
+        }
+        webView.callAsyncJavaScript(
+            "return findMarkdownMatch(query, backwards)",
+            arguments: ["query": query, "backwards": backwards],
+            in: nil,
+            in: .page,
+            completionHandler: { result in completion((try? result.get()) as? Bool) }
+        )
+    }
+
+    func replace(_ query: String, with replacement: String, all: Bool, completion: @escaping (Int?) -> Void) {
+        guard isLoaded, let webView else {
+            completion(nil)
+            return
+        }
+        webView.callAsyncJavaScript(
+            "return replaceMarkdownMatches(query, replacement, all)",
+            arguments: ["query": query, "replacement": replacement, "all": all],
+            in: nil,
+            in: .page,
+            completionHandler: { result in completion((try? result.get()) as? Int) }
+        )
+    }
+
+    func applyFormat(_ format: MarkdownFormat, linkURL: String?, linkText: String?) {
+        guard isLoaded, let webView else { return }
+        webView.window?.makeFirstResponder(webView)
+        webView.callAsyncJavaScript(
+            "return applyMarkdownFormat(action, linkURL, linkText)",
+            arguments: [
+                "action": format.rawValue,
+                "linkURL": linkURL.map { $0 as Any } ?? NSNull(),
+                "linkText": linkText.map { $0 as Any } ?? NSNull()
+            ],
+            in: nil,
+            in: .page,
+            completionHandler: { result in
+                guard (try? result.get()) as? Bool == false else { return }
+                NSSound.beep()
+                AccessibilityNotification.Announcement("Formatting is unavailable for this selection.").post()
+            }
+        )
+    }
+
+    func loadLinkContext(_ completion: @escaping ([String: String]) -> Void) {
+        guard isLoaded, let webView else {
+            completion([:])
+            return
+        }
+        webView.callAsyncJavaScript(
+            "return markdownLinkContext()",
+            in: nil,
+            in: .page,
+            completionHandler: { result in completion((try? result.get()) as? [String: String] ?? [:]) }
+        )
+    }
+
+    func endFind(clearingSelection: Bool) {
+        guard let webView else { return }
+        webView.window?.makeFirstResponder(webView)
+        webView.callAsyncJavaScript(
+            """
+            const selection = window.getSelection();
+            if (content.isContentEditable) {
+                content.focus({ preventScroll: true });
+            }
+            if (clearingSelection && !selection.isCollapsed && content.contains(selection.anchorNode)) {
+                selection.collapseToEnd();
+            }
+            """,
+            arguments: ["clearingSelection": clearingSelection],
+            in: nil,
+            in: .page
+        )
+    }
+
+    private func jump(_ script: String, arguments: [String: Any]) {
+        if isLoaded, let webView {
+            webView.callAsyncJavaScript(script, arguments: arguments, in: nil, in: .page)
+        } else {
+            pendingJump = (script, arguments)
         }
     }
 }
 
 struct MarkdownWebView: NSViewRepresentable {
-    let text: String
+    @Binding var text: String
     var fontSize: Double
     var scrollProxy: ScrollProxy?
+    var isEditing = false
+    var onUndo: (() -> Void)?
+    var onRedo: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(self)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
+        let coordinator = context.coordinator
+        config.userContentController.add(coordinator, name: "skimmy")
+        webView.navigationDelegate = coordinator
         webView.setValue(false, forKey: "drawsBackground")
-        context.coordinator.webView = webView
-        context.coordinator.scrollProxy = scrollProxy
         scrollProxy?.webView = webView
-
-        let html = Self.buildHTML(markdown: text, fontSize: fontSize)
-        webView.loadHTMLString(html, baseURL: nil)
-        context.coordinator.lastText = text
-        context.coordinator.lastFontSize = fontSize
-
+        scrollProxy?.isLoaded = false
+        webView.loadHTMLString(Self.html, baseURL: nil)
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         let coordinator = context.coordinator
+        coordinator.parent = self
+        coordinator.update(webView)
+    }
 
-        if !coordinator.isLoaded {
-            coordinator.pendingText = text
-            coordinator.pendingFontSize = fontSize
-            return
-        }
-
-        if coordinator.lastFontSize != fontSize {
-            coordinator.lastFontSize = fontSize
-            let js = "document.body.style.fontSize = '\(fontSize)px';"
-            webView.evaluateJavaScript(js)
-        }
-
-        if coordinator.lastText != text {
-            coordinator.lastText = text
-            webView.evaluateJavaScript("updateContent(\(MarkdownWebView.jsStringLiteral(text)));")
+    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "skimmy")
+        if let proxy = coordinator.parent.scrollProxy, proxy.webView === webView {
+            proxy.webView = nil
+            proxy.isLoaded = false
         }
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        weak var webView: WKWebView?
-        var scrollProxy: ScrollProxy?
-        var isLoaded = false
-        var lastText = ""
-        var lastFontSize: Double = 16
-        var pendingText: String?
-        var pendingFontSize: Double?
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var parent: MarkdownWebView
+        private var isLoaded = false
+        private var displayedText: String?
+        private var displayedFontSize: Double?
+        private var editing = false
+        private var revision = 0
+
+        init(_ parent: MarkdownWebView) {
+            self.parent = parent
+        }
+
+        func update(_ webView: WKWebView) {
+            guard isLoaded else { return }
+            let text = parent.text
+            var changes: [String: Any] = [:]
+            if displayedText != text {
+                displayedText = text
+                revision += 1
+                changes["text"] = text
+                changes["revision"] = revision
+            }
+            if displayedFontSize != parent.fontSize {
+                displayedFontSize = parent.fontSize
+                changes["fontSize"] = parent.fontSize
+            }
+            if editing != parent.isEditing {
+                editing = parent.isEditing
+                if editing, let window = webView.window {
+                    window.makeFirstResponder(webView)
+                }
+                changes["editing"] = editing
+            }
+            if !changes.isEmpty {
+                webView.callAsyncJavaScript("""
+                    if ('text' in changes) updateContent(changes.text, changes.revision);
+                    if ('fontSize' in changes) document.body.style.fontSize = changes.fontSize + 'px';
+                    if ('editing' in changes) setEditing(changes.editing);
+                    """, arguments: ["changes": changes], in: nil, in: .page)
+            }
+        }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoaded = true
+            update(webView)
+            parent.scrollProxy?.didFinishLoading()
+        }
 
-            if let fontSize = pendingFontSize, fontSize != lastFontSize {
-                lastFontSize = fontSize
-                webView.evaluateJavaScript("document.body.style.fontSize = '\(fontSize)px';")
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            isLoaded = false
+            displayedText = nil
+            displayedFontSize = nil
+            editing = false
+            parent.scrollProxy?.isLoaded = false
+            webView.loadHTMLString(MarkdownWebView.html, baseURL: nil)
+        }
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.frameInfo.isMainFrame,
+                  let body = message.body as? [String: Any],
+                  body["revision"] as? Int == revision else { return }
+
+            if let markdown = body["markdown"] as? String, markdown != displayedText {
+                displayedText = markdown
+                parent.text = markdown
+            } else if let destination = body["openLink"] as? String, let url = URL(string: destination) {
+                MarkdownWebView.openExternally(url)
+            } else if let action = body["action"] as? String {
+                switch action {
+                case "undo": parent.onUndo?()
+                case "redo": parent.onRedo?()
+                default: break
+                }
             }
-
-            if let text = pendingText, text != lastText {
-                lastText = text
-                webView.evaluateJavaScript("updateContent(\(MarkdownWebView.jsStringLiteral(text)));")
-            }
-
-            pendingText = nil
-            pendingFontSize = nil
-            scrollProxy?.didFinishLoading()
         }
 
         func webView(
@@ -110,27 +253,6 @@ struct MarkdownWebView: NSViewRepresentable {
                 open: { NSWorkspace.shared.open($0) }
             ))
         }
-    }
-
-    // MARK: - HTML Template
-
-    // MARK: - Safety helpers
-
-    /// Encodes any string as a JavaScript string literal that is safe to embed
-    /// both in `evaluateJavaScript` and inside an inline `<script>` element.
-    static func jsStringLiteral(_ string: String) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: [string], options: [.fragmentsAllowed]),
-              var json = String(data: data, encoding: .utf8) else { return "\"\"" }
-        json.removeFirst() // drop "["
-        json.removeLast()  // drop "]"
-        // Never let "<", ">" or "&" appear literally, so the literal cannot close
-        // the surrounding <script> element; also escape JS line separators.
-        return json
-            .replacingOccurrences(of: "<", with: "\\u003c")
-            .replacingOccurrences(of: ">", with: "\\u003e")
-            .replacingOccurrences(of: "&", with: "\\u0026")
-            .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
-            .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
     }
 
     /// URL schemes a clicked link may hand to the system. Everything else
@@ -168,247 +290,40 @@ struct MarkdownWebView: NSViewRepresentable {
         return .cancel
     }
 
-    static func buildHTML(markdown: String, fontSize: Double) -> String {
-        guard let jsURL = Bundle.main.url(forResource: "marked", withExtension: "min.js"),
-              let jsCode = try? String(contentsOf: jsURL, encoding: .utf8) else {
-            return "<html><body>Error: Could not load marked.js</body></html>"
+    private static let html: String = {
+        func resource(_ name: String, _ ext: String) -> String? {
+            guard let url = Bundle.main.url(forResource: name, withExtension: ext) else { return nil }
+            return try? String(contentsOf: url, encoding: .utf8)
         }
 
-        // A fresh nonce per page: only our own two <script> blocks may run.
-        // Inline event handlers (onerror=…) can never carry a nonce, so the
-        // Content-Security-Policy blocks them even if the sanitizer missed one.
-        let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        guard let marked = resource("marked.min", "js"),
+              let turndown = resource("turndown-gfm.min", "js"),
+              let editor = resource("markdown-editor", "js"),
+              let formatting = resource("markdown-formatting", "js"),
+              let replace = resource("markdown-replace", "js"),
+              let styles = resource("markdown", "css") else {
+            return "<html><body>Could not load the Markdown editor.</body></html>"
+        }
 
+        let nonce = UUID().uuidString
         return """
         <!DOCTYPE html>
-        <html>
+        <html lang="en">
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-\(nonce)'; style-src 'unsafe-inline'; img-src http: https: data:; media-src http: https:; font-src data:; form-action 'none'; base-uri 'none'">
-        <style>
-        \(Self.cssStyles(fontSize: fontSize))
-        </style>
-        <script nonce="\(nonce)">\(jsCode)</script>
+        <style>\(styles)</style>
+        <script nonce="\(nonce)">\(marked)</script>
+        <script nonce="\(nonce)">\(turndown)</script>
         </head>
         <body>
-        <div id="content"></div>
-        <script nonce="\(nonce)">
-        \(Self.jsSetup)
-
-        updateContent(\(Self.jsStringLiteral(markdown)));
-        </script>
+        <main id="content"></main>
+        <script nonce="\(nonce)">\(editor)</script>
+        <script nonce="\(nonce)">\(formatting)</script>
+        <script nonce="\(nonce)">\(replace)</script>
         </body>
         </html>
         """
-    }
-
-    private static let jsSetup = """
-    function kebabCase(str) {
-        return str.split(/[^a-zA-Z0-9]+/).filter(s => s.length > 0).map(s => s.toLowerCase()).join('-');
-    }
-
-    const renderer = new marked.Renderer();
-
-    renderer.heading = function({ tokens, depth }) {
-        const text = this.parser.parseInline(tokens);
-        const stripped = text.replace(/<[^>]*>/g, '');
-        const decoded = stripped.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-        const id = kebabCase(decoded);
-        return `<h${depth} id="${id}">${text}</h${depth}>`;
-    };
-
-    marked.setOptions({
-        renderer: renderer,
-        gfm: true,
-        breaks: false
-    });
-
-    // Markdown may contain raw HTML. marked.js does NOT sanitize it, so every
-    // rendered node goes through this allowlist before it reaches the page:
-    // unknown elements are unwrapped (their text kept), dangerous ones are
-    // dropped, and only harmless attributes with safe URLs survive.
-    const DROP = new Set(['SCRIPT','STYLE','IFRAME','FRAME','FRAMESET','OBJECT','EMBED','APPLET',
-        'LINK','META','BASE','FORM','BUTTON','SELECT','TEXTAREA','OPTION','TEMPLATE','NOSCRIPT',
-        'SVG','MATH','PORTAL','DIALOG']);
-    const KEEP = new Set(['A','ABBR','B','BLOCKQUOTE','BR','CAPTION','CITE','CODE','DD','DEL','DETAILS',
-        'DFN','DIV','DL','DT','EM','FIGCAPTION','FIGURE','H1','H2','H3','H4','H5','H6','HR','I','IMG',
-        'INPUT','INS','KBD','LI','MARK','OL','P','PRE','Q','S','SAMP','SMALL','SPAN','STRIKE','STRONG',
-        'SUB','SUMMARY','SUP','TABLE','TBODY','TD','TFOOT','TH','THEAD','TR','TT','U','UL','VAR',
-        'PICTURE','SOURCE','VIDEO','AUDIO']);
-    const ATTRS = new Set(['href','src','srcset','alt','title','id','name','align','colspan','rowspan',
-        'start','width','height','type','checked','disabled','open','lang','dir','controls','loop',
-        'muted','poster','media','reversed','scope','abbr','datetime','cite']);
-    const URL_ATTRS = new Set(['href','src','poster','cite']);
-
-    function safeURL(value, attr) {
-        const v = value.trim().replace(/[\\u0000-\\u0020]/g, '');
-        if (v.startsWith('#')) return attr === 'href';
-        const m = v.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
-        if (!m) return false;                       // no base URL: relative links can't resolve
-        const scheme = m[1].toLowerCase();
-        if (scheme === 'http' || scheme === 'https') return true;
-        if (scheme === 'mailto') return attr === 'href';
-        if (scheme === 'data') return attr === 'src' && /^data:image\\/(png|gif|jpe?g|webp|bmp)[;,]/i.test(v);
-        return false;
-    }
-
-    function sanitize(node) {
-        for (const child of Array.from(node.childNodes)) {
-            if (child.nodeType === Node.COMMENT_NODE) { child.remove(); continue; }
-            if (child.nodeType !== Node.ELEMENT_NODE) continue;
-            const tag = child.tagName.toUpperCase();
-            if (DROP.has(tag)) { child.remove(); continue; }
-            if (!KEEP.has(tag)) {
-                sanitize(child);
-                const inner = document.createDocumentFragment();
-                while (child.firstChild) inner.appendChild(child.firstChild);
-                child.replaceWith(inner);
-                continue;
-            }
-            for (const attr of Array.from(child.attributes)) {
-                const name = attr.name.toLowerCase();
-                let ok = ATTRS.has(name);
-                if (ok && URL_ATTRS.has(name)) ok = safeURL(attr.value, name);
-                if (ok && name === 'srcset') ok = attr.value.split(/,\\s+/).every(p => safeURL(p.trim().split(/\\s+/)[0] || '', 'src'));
-                if (ok && name === 'type' && tag === 'INPUT') ok = attr.value.toLowerCase() === 'checkbox';
-                if (!ok) child.removeAttribute(attr.name);
-            }
-            if (tag === 'INPUT') {
-                if ((child.getAttribute('type') || '').toLowerCase() !== 'checkbox') { child.remove(); continue; }
-                child.setAttribute('disabled', '');
-            }
-            if (tag === 'A' && child.hasAttribute('href')) child.setAttribute('rel', 'noopener noreferrer');
-            sanitize(child);
-        }
-    }
-
-    function updateContent(md) {
-        const scrollMax = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-        const scrollRatio = scrollMax > 0 ? window.scrollY / scrollMax : 0;
-
-        const el = document.getElementById('content');
-        el.textContent = '';
-        const parsed = marked.parse(md);
-        // Parse into an inert document (nothing runs or loads there), clean it,
-        // and only then move the nodes into the live page.
-        const doc = new DOMParser().parseFromString('<body>' + parsed, 'text/html');
-        sanitize(doc.body);
-        const fragment = document.createDocumentFragment();
-        while (doc.body.firstChild) fragment.appendChild(document.adoptNode(doc.body.firstChild));
-        el.replaceChildren(fragment);
-
-        const newMax = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-        if (newMax > 0) {
-            window.scrollTo(0, scrollRatio * newMax);
-        }
-    }
-
-    function scrollToHeading(id) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-    """
-
-    private static func cssStyles(fontSize: Double) -> String { """
-    :root {
-        color-scheme: light dark;
-    }
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
-                     Helvetica, Arial, sans-serif;
-        font-size: \(fontSize)px;
-        line-height: 1.6;
-        color: #1f2328;
-        background: transparent;
-        margin: 0;
-        padding: 24px 32px;
-        word-wrap: break-word;
-    }
-    @media (prefers-color-scheme: dark) {
-        body { color: #e6edf3; }
-        a { color: #58a6ff; }
-        code, pre { background: #161b22; }
-        pre { border-color: #30363d; }
-        blockquote { border-color: #30363d; color: #8b949e; }
-        table th, table td { border-color: #30363d; }
-        table tr:nth-child(2n) { background: #161b22; }
-        hr { background: #30363d; }
-        img { opacity: 0.9; }
-    }
-    a { color: #0969da; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    h1, h2, h3, h4, h5, h6 {
-        margin-top: 24px;
-        margin-bottom: 16px;
-        font-weight: 600;
-        line-height: 1.25;
-    }
-    h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0; }
-    h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0; }
-    @media (prefers-color-scheme: dark) {
-        h1, h2 { border-bottom-color: #30363d; }
-    }
-    h3 { font-size: 1.25em; }
-    h4 { font-size: 1em; }
-    h5 { font-size: 0.875em; }
-    h6 { font-size: 0.85em; color: #656d76; }
-    p { margin-top: 0; margin-bottom: 16px; }
-    code {
-        padding: 0.2em 0.4em;
-        font-size: 85%;
-        background: #eff1f3;
-        border-radius: 6px;
-        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-    }
-    pre {
-        padding: 16px;
-        overflow: auto;
-        font-size: 85%;
-        line-height: 1.45;
-        background: #f6f8fa;
-        border-radius: 6px;
-        border: 1px solid #d1d9e0;
-    }
-    pre code {
-        padding: 0;
-        background: transparent;
-        border-radius: 0;
-        font-size: 100%;
-    }
-    blockquote {
-        margin: 0 0 16px 0;
-        padding: 0 1em;
-        color: #656d76;
-        border-left: 0.25em solid #d1d9e0;
-    }
-    ul, ol { padding-left: 2em; margin-bottom: 16px; }
-    li + li { margin-top: 0.25em; }
-    table {
-        display: block;
-        border-spacing: 0;
-        border-collapse: collapse;
-        margin-bottom: 16px;
-        width: max-content;
-        max-width: 100%;
-        overflow: auto;
-    }
-    table th, table td {
-        padding: 6px 13px;
-        border: 1px solid #d1d9e0;
-    }
-    table th { font-weight: 600; }
-    table tr:nth-child(2n) { background: #f6f8fa; }
-    hr {
-        height: 0.25em;
-        padding: 0;
-        margin: 24px 0;
-        background: #d1d9e0;
-        border: 0;
-    }
-    img { max-width: 100%; height: auto; }
-    input[type="checkbox"] { margin-right: 0.5em; }
-    """ }
+    }()
 }

@@ -2,70 +2,97 @@ import SwiftUI
 
 @main
 struct SkimmyApp: App {
-    @StateObject private var fontSizeManager = FontSizeManager.shared
-    @StateObject private var sidebarStateManager = SidebarStateManager.shared
-    @FocusedValue(\.toggleEditMode) var toggleEditMode
-    @FocusedValue(\.toggleFindBar) var toggleFindBar
-    @FocusedValue(\.saveDocument) var saveDocument
+    @NSApplicationDelegateAdaptor(SkimmyAppDelegate.self) private var appDelegate
 
     var body: some Scene {
         DocumentGroup(newDocument: MarkdownDocument()) { file in
-            ContentView(document: file.$document, fileURL: file.fileURL)
-                .environmentObject(fontSizeManager)
-                .environmentObject(sidebarStateManager)
+            ContentView(document: file.$document, fileURL: file.fileURL, isEditable: file.isEditable)
+                .environmentObject(FontSizeManager.shared)
         }
         .commands {
-            CommandGroup(replacing: .saveItem) {
-                Button("Save") {
-                    // Delegated to ContentView so the "unsaved changes" baseline
-                    // is updated after a save — otherwise toggling out of edit
-                    // mode after Cmd+S would re-prompt the save dialog.
-                    saveDocument?()
+            SkimmyFindCommands()
+            SkimmyViewCommands()
+        }
+
+        Settings {
+            SkimmySettingsView()
+        }
+    }
+}
+
+private struct SkimmyFindCommands: Commands {
+    @FocusedValue(DocumentMenuTarget.self) private var target
+
+    var body: some Commands {
+        CommandGroup(after: .textEditing) {
+            Menu("Find") {
+                Button("Find…") {
+                    target?.perform(.showFind)
                 }
-                .keyboardShortcut("s", modifiers: .command)
+                .keyboardShortcut("f")
+                .disabled(target?.canFind != true)
+
+                Button("Find Next") {
+                    target?.perform(.nextMatch)
+                }
+                .keyboardShortcut("g")
+                .disabled(target?.canNavigateMatches != true)
+
+                Button("Find Previous") {
+                    target?.perform(.previousMatch)
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(target?.canNavigateMatches != true)
             }
+        }
+    }
+}
 
-            CommandGroup(replacing: .textEditing) {
-                Button("Find") {
-                    toggleFindBar?()
-                }
-                .keyboardShortcut("f", modifiers: .command)
-            }
+private struct SkimmyViewCommands: Commands {
+    @FocusedValue(DocumentMenuTarget.self) private var target
+    @ObservedObject private var fontSizeManager = FontSizeManager.shared
 
-            // Merge our view commands INTO the built-in View menu instead of
-            // adding a second "View" menu. `.sidebar` places items near the
-            // existing "Show/Hide Sidebar" entries, which is the natural home
-            // for our edit/preview, sidebar, and zoom controls.
-            CommandGroup(after: .sidebar) {
-                Divider()
+    private var sidebarVisibility: Binding<Bool> {
+        Binding {
+            target?.isSidebarVisible ?? false
+        } set: { isVisible in
+            target?.perform(.setSidebarVisible(isVisible))
+        }
+    }
 
-                Button("Toggle Edit/Preview") {
-                    toggleEditMode?()
-                }
-                .keyboardShortcut("e", modifiers: .command)
-
-                Button("Toggle Sidebar") {
-                    sidebarStateManager.toggle()
-                }
+    var body: some Commands {
+        CommandGroup(replacing: .sidebar) {
+            Toggle("Show Sidebar", isOn: sidebarVisibility)
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+                .disabled(target?.canFind != true)
 
-                Divider()
+            Divider()
 
-                Button("Increase Font Size") {
-                    fontSizeManager.increase()
-                }
-                .keyboardShortcut("=", modifiers: .command)
-
-                Button("Decrease Font Size") {
-                    fontSizeManager.decrease()
-                }
-                .keyboardShortcut("-", modifiers: .command)
-
-                Button("Reset Font Size") {
-                    fontSizeManager.reset()
-                }
-                .keyboardShortcut("0", modifiers: .command)
+            Button("Toggle Formatted Editing") {
+                target?.perform(.toggleEditing)
             }
+            .keyboardShortcut("e")
+            .disabled(target?.canEdit != true)
+
+            Divider()
+
+            Button("Increase Text Size") {
+                fontSizeManager.increase()
+            }
+            .keyboardShortcut("=")
+            .disabled(target?.canFind != true || !fontSizeManager.canIncrease)
+
+            Button("Decrease Text Size") {
+                fontSizeManager.decrease()
+            }
+            .keyboardShortcut("-")
+            .disabled(target?.canFind != true || !fontSizeManager.canDecrease)
+
+            Button("Reset Text Size") {
+                fontSizeManager.reset()
+            }
+            .keyboardShortcut("0")
+            .disabled(target?.canFind != true || !fontSizeManager.canReset)
         }
     }
 }

@@ -1,78 +1,114 @@
 import SwiftUI
 
 struct FindBarView: View {
-    let scrollProxy: ScrollProxy
+    @Binding var searchText: String
+    @Binding var replacementText: String
+    let focusRequest: Int
+    let matchFound: Bool?
+    let replacementStatus: String?
+    let isReplacing: Bool
+    let onFind: (Bool) -> Void
+    let onReplace: ((Bool) -> Void)?
     let onDismiss: () -> Void
 
-    @State private var searchText = ""
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @FocusState private var isFocused: Bool
+    @AccessibilityFocusState(for: .voiceOver) private var isVoiceOverFocused: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 12))
+        VStack(alignment: .trailing, spacing: 4) {
+            controls
 
-            TextField("Find in page", text: $searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .focused($isFocused)
-                .onSubmit { findNext() }
-                .frame(width: 180)
-
-            Button(action: findPrevious) {
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 11, weight: .medium))
+            if let onReplace {
+                replacementControls(onReplace)
             }
-            .buttonStyle(.plain)
-            .help("Previous match (Shift Enter)")
 
-            Button(action: findNext) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .buttonStyle(.plain)
-            .help("Next match (Enter)")
-
-            Button(action: dismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
+            if let feedback {
+                Text(feedback)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-            .help("Close (Esc)")
         }
-        .padding(.horizontal, 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Document Find")
+        .controlSize(.small)
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .onAppear { isFocused = true }
-        .onKeyPress(.escape) {
-            dismiss()
-            return .handled
+        .background {
+            if reduceTransparency {
+                Color(nsColor: .windowBackgroundColor)
+            } else {
+                Rectangle().fill(.bar)
+            }
+        }
+        .overlay(alignment: .bottom) { Divider() }
+        .onChange(of: focusRequest, initial: true) { _, _ in
+            isFocused = true
+            if voiceOverEnabled { isVoiceOverFocused = true }
+        }
+        .onExitCommand(perform: onDismiss)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 8) {
+            Spacer()
+
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            TextField("Find in Document", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Find in Document")
+                .focused($isFocused)
+                .accessibilityFocused($isVoiceOverFocused)
+                .onSubmit { onFind(false) }
+                .onKeyPress(keys: [.return]) { press in
+                    guard press.modifiers.contains(.shift) else { return .ignored }
+                    onFind(true)
+                    return .handled
+                }
+                .frame(maxWidth: 230)
+
+            ControlGroup {
+                Button("Previous Match", systemImage: "chevron.up") { onFind(true) }
+                    .help("Previous Match (⇧⌘G)")
+
+                Button("Next Match", systemImage: "chevron.down") { onFind(false) }
+                    .help("Next Match (⌘G)")
+            }
+            .labelStyle(.iconOnly)
+            .disabled(searchText.isEmpty || isReplacing)
+
+            Button("Done", action: onDismiss)
+                .accessibilityLabel("Close Find")
+                .help("Close Find (Esc)")
         }
     }
 
-    private func findNext() {
-        guard !searchText.isEmpty else { return }
-        let escaped = searchText.replacingOccurrences(of: "'", with: "\\'")
-        scrollProxy.webView?.evaluateJavaScript(
-            "window.find('\(escaped)', false, false, true);"
-        )
+    private var feedback: String? {
+        if matchFound == false { return "No matches" }
+        return onReplace == nil ? nil : replacementStatus
     }
 
-    private func findPrevious() {
-        guard !searchText.isEmpty else { return }
-        let escaped = searchText.replacingOccurrences(of: "'", with: "\\'")
-        scrollProxy.webView?.evaluateJavaScript(
-            "window.find('\(escaped)', false, true, true);"
-        )
-    }
+    private func replacementControls(_ replace: @escaping (Bool) -> Void) -> some View {
+        HStack(spacing: 8) {
+            Spacer()
 
-    private func dismiss() {
-        // Clear selection highlight
-        scrollProxy.webView?.evaluateJavaScript(
-            "window.getSelection().removeAllRanges();"
-        )
-        onDismiss()
+            TextField("Replace With", text: $replacementText)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Replace With")
+                .onSubmit {
+                    if !searchText.isEmpty && !isReplacing { replace(false) }
+                }
+                .frame(maxWidth: 230)
+
+            ControlGroup {
+                Button("Replace") { replace(false) }
+                Button("Replace All") { replace(true) }
+            }
+            .disabled(searchText.isEmpty || isReplacing)
+        }
     }
 }

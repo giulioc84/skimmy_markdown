@@ -14,65 +14,37 @@
 
 ---
 
-## Why Skimmy?
+## Using Skimmy
 
-Skimmy is a minimal, native macOS editor for `.md` files. Unlike Electron-based
-editors, it uses AppKit's `NSTextView` for the editor and `WKWebView` for the
-preview, so it launches instantly, scrolls smoothly, and feels at home on macOS.
+Open a Markdown file and choose **Edit** in the toolbar to type directly on the
+formatted page. **Read** gives you a read-only view. Choose **Source** when you
+want to edit the Markdown syntax itself.
 
-No tabs, no plugins, no cloud. Open a file, write markdown, see it rendered.
+Skimmy keeps the original source of blocks you leave untouched. Edited blocks
+can use different Markdown syntax to express the same formatting. Use Source
+when you need to keep a particular Markdown syntax or edit raw HTML.
 
-![Skimmy preview mode](docs/screenshot-preview.png)
+In Edit, use the **Format** menu to change headings, emphasis, code, lists, and
+links. You can also replace search matches and check off Markdown tasks.
 
-### Navigator
+The sidebar has a heading outline and a link index. Choose a heading to jump
+to it in Read or Edit. Skimmy uses the standard macOS commands for saving,
+duplicating, and reopening documents.
 
-The sidebar (`⇧⌘L`) gives you a heading outline *and* a link index — click any
-entry to jump straight there.
+Choose System, Light, or Dark in **Skimmy > Settings > Appearance**.
+The offline guide is under **Help > Skimmy Help**.
 
-![Skimmy sidebar with heading outline](docs/screenshot-sidebar.png)
+| Shortcut | Action |
+| -------- | ------ |
+| `⌘E` | Toggle formatted editing |
+| `⇧⌘L` | Show or hide the sidebar |
+| `⌘S` | Save |
+| `⌘F` | Find in the current view |
+| `⌘G` / `⇧⌘G` | Find the next or previous match |
+| `⌘=` / `⌘-` | Increase or decrease text size |
+| `⌘0` | Reset text size |
 
-### Editor
-
-Toggle to edit mode with `⌘E`. Monospaced, native undo/redo, no auto-correct
-surprises.
-
-![Skimmy editor mode](docs/screenshot-editor.png)
-
-## Features
-
-### Editing
-- Native `NSTextView`-backed editor with full undo/redo and system find bar (`⌘F`)
-- Monospaced fonts with adjustable size (`⌘=`, `⌘-`, `⌘0`), persisted across launches
-- Auto-correct, smart quotes, smart dashes, and link detection explicitly **off** — no markdown-breaking surprises
-
-### Preview
-- Instant GitHub-flavored rendering via [marked.js](https://github.com/markedjs/marked) inside `WKWebView`
-- Automatic light / dark theme via `prefers-color-scheme`
-- Clickable links open in the default browser (not in-app)
-
-### Navigation
-- Toggleable sidebar (`⇧⌘L`) with two tabs:
-  - **Contents** — full H1–H6 outline, click to scroll
-  - **Links** — every inline `[text](url)`, image `![alt](url)`, and autolink `<url>`
-- Debounced parsing on a background thread (300 ms) so large docs stay responsive
-
-### Files & windows
-- Native `DocumentGroup` integration — proper Open / Save / Save As / Recents
-- Registered as Owner for `.md`, `.markdown`, `.mdown`
-- Welcome screen with up to 10 recent documents
-- Save-confirmation dialog when leaving edit mode with unsaved changes
-- Visual-effect (blur) window background
-
-### Keyboard shortcuts
-
-| Shortcut  | Action                    |
-| --------- | ------------------------- |
-| `⌘E`      | Toggle edit / preview     |
-| `⇧⌘L`     | Toggle sidebar            |
-| `⌘S`      | Save                      |
-| `⌘F`      | Find in editor            |
-| `⌘=`/`⌘-` | Increase / decrease font  |
-| `⌘0`      | Reset font size           |
+[Planned relative Markdown links](docs/relative-markdown-links.md)
 
 ## Install
 
@@ -162,15 +134,15 @@ Skimmy/
 ├── App/            # Entry point (SkimmyApp.swift), DocumentGroup, menu commands
 ├── Model/          # MarkdownDocument, parsers (headings, links)
 ├── Views/          # SwiftUI + NSViewRepresentable wrappers (editor, reader, sidebar)
-├── Utilities/      # Debounced parsing, persisted settings, window helpers
+├── Utilities/      # Debounced parsing and persisted settings
 └── Resources/      # Info.plist, marked.min.js, Assets.xcassets
 ```
 
 ## Tech stack
 
 - **SwiftUI** (macOS 26+, Swift 5.9)
-- **NSTextView** for the editor (wrapped in `NSViewRepresentable`)
-- **WKWebView** + **marked.js** for the preview
+- **NSTextView** for editing Markdown source
+- **WKWebView**, **marked.js**, and **Turndown** for formatted reading and editing
 - **XcodeGen** (`project.yml` → `.xcodeproj`)
 
 ## Versioning

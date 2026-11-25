@@ -5,29 +5,26 @@ private enum SidebarTab: String, CaseIterable {
     case links = "Links"
 }
 
-struct SidebarView: View, Equatable {
+struct SidebarView: View {
     let headings: [DocumentHeading]
     let links: [DocumentLink]
-    let scrollProxy: ScrollProxy?
-    let isEditing: Bool
-
-    static func == (lhs: SidebarView, rhs: SidebarView) -> Bool {
-        lhs.headings == rhs.headings && lhs.links == rhs.links && lhs.isEditing == rhs.isEditing
-    }
+    let canJumpToHeading: Bool
+    let onHeading: (DocumentHeading) -> Void
+    let onLink: (String) -> Void
 
     @State private var selectedTab: SidebarTab = .contents
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
+        VStack(spacing: 4) {
+            Picker("Sidebar view", selection: $selectedTab) {
                 ForEach(SidebarTab.allCases, id: \.self) { tab in
                     Text(tab.rawValue).tag(tab)
                 }
             }
+            .labelsHidden()
             .pickerStyle(.segmented)
-            .padding(.horizontal, 12)
-            .padding(.top, 38)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
 
             switch selectedTab {
             case .contents:
@@ -35,102 +32,96 @@ struct SidebarView: View, Equatable {
             case .links:
                 linksTab
             }
-
-            Spacer(minLength: 0)
         }
-        .frame(width: 220)
-        .frame(maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Document navigation")
     }
 
     @ViewBuilder
     private var contentsTab: some View {
         if headings.isEmpty {
-            Text("No headings")
-                .font(.system(size: 13))
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, 12)
-                .padding(.top, 4)
+            emptyLabel("No headings")
         } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(headings) { heading in
-                        Button {
-                            if !isEditing {
-                                scrollProxy?.scrollTo(heading.id)
-                            }
-                        } label: {
-                            Text(heading.text)
-                                .font(.system(size: 13, weight: weight(for: heading.level)))
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 2)
-                        .padding(.leading, 8 + CGFloat(heading.level - 1) * 12)
-                        .padding(.trailing, 8)
-                    }
-                }
+            if !canJumpToHeading {
+                emptyLabel("Switch to Read or Edit to jump to a heading.")
             }
+            List(headings) { heading in
+                Button {
+                    onHeading(heading)
+                } label: {
+                    Text(heading.text)
+                        .fontWeight(heading.level == 1 ? .semibold : .regular)
+                        .lineLimit(2)
+                        .padding(.leading, CGFloat(heading.level - 1) * 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canJumpToHeading)
+                .accessibilityHint("Jumps to this heading", isEnabled: canJumpToHeading)
+                .help(heading.text)
+            }
+            .listStyle(.sidebar)
+            .accessibilityLabel("Document headings")
         }
     }
 
     @ViewBuilder
     private var linksTab: some View {
         if links.isEmpty {
-            Text("No links")
-                .font(.system(size: 13))
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, 12)
-                .padding(.top, 4)
+            emptyLabel("No links")
         } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(links) { link in
-                        Button {
-                            if let url = URL(string: link.url) {
-                                MarkdownWebView.openExternally(url)
-                            }
-                        } label: {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: link.isImage ? "photo" : "link")
-                                    .font(.system(size: 11))
+            List(links) { link in
+                let enabled = canFollow(link.url)
+                Button {
+                    onLink(link.url)
+                } label: {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: link.isImage ? "photo" : "link")
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(link.text.isEmpty ? link.url : link.text)
+                                .lineLimit(2)
+
+                            if !link.text.isEmpty {
+                                Text(link.url)
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
-                                    .frame(width: 14, alignment: .center)
-                                    .padding(.top, 2)
-
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(link.text.isEmpty ? link.url : link.text)
-                                        .font(.system(size: 13))
-                                        .lineLimit(2)
-                                        .truncationMode(.tail)
-
-                                    if !link.text.isEmpty {
-                                        Text(link.url)
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                    }
-                                }
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 2)
-                        .padding(.horizontal, 8)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .disabled(!enabled)
+                .accessibilityLabel(link.text.isEmpty ? link.url : link.text)
+                .accessibilityHint(
+                    link.url.hasPrefix("#") ? "Jumps to a section in this document" : "Opens this link",
+                    isEnabled: enabled
+                )
+                .help(link.url)
             }
+            .listStyle(.sidebar)
+            .accessibilityLabel("Document links")
         }
     }
 
-    private func weight(for level: Int) -> Font.Weight {
-        switch level {
-        case 1: .bold
-        case 2: .semibold
-        default: .regular
-        }
+    private func canFollow(_ destination: String) -> Bool {
+        if destination.hasPrefix("#") { return canJumpToHeading }
+        guard let scheme = URL(string: destination)?.scheme?.lowercased() else { return false }
+        return MarkdownWebView.externalSchemes.contains(scheme)
+    }
+
+    private func emptyLabel(_ title: String) -> some View {
+        Text(title)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
     }
 }

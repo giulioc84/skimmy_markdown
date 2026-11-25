@@ -1,96 +1,49 @@
 import Foundation
 
 struct DocumentHeading: Identifiable, Equatable {
-    let id: String
+    struct ID: Hashable {
+        let anchor: String
+        let occurrence: Int
+    }
+
+    var id: ID { ID(anchor: anchor, occurrence: occurrence) }
+    let anchor: String
+    let occurrence: Int
     let level: Int
     let text: String
-    let lineIndex: Int
 }
 
-enum HeadingParser {
-    static func parse(_ markdown: String) -> [DocumentHeading] {
-        let lines = markdown.components(separatedBy: .newlines)
-        var headings: [DocumentHeading] = []
-        var inFencedBlock = false
+struct HeadingParser {
+    private static let trailingHashes = try! NSRegularExpression(pattern: #"\s+#*\s*$"#)
+    private static let inlineLinks = try! NSRegularExpression(pattern: #"!?\[([^\]]*)\]\([^\)]*\)"#)
+    private static let inlineMarkers = try! NSRegularExpression(pattern: #"[*_`]+|~~"#)
 
-        for (index, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+    private(set) var headings: [DocumentHeading] = []
+    private var occurrences: [String: Int] = [:]
 
-            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
-                inFencedBlock.toggle()
-                continue
-            }
-            if inFencedBlock { continue }
+    mutating func read(_ line: Substring) {
+        guard line.first == "#" else { return }
+        let level = line.prefix(while: { $0 == "#" }).count
+        guard level <= 6 else { return }
 
-            guard trimmed.hasPrefix("#") else { continue }
+        let afterHashes = line.dropFirst(level)
+        guard afterHashes.first == " " || afterHashes.first == "\t" else { return }
+        let source = afterHashes.trimmingCharacters(in: .whitespaces)
+        let raw = Self.replacing(in: source, regex: Self.trailingHashes)
+        guard !raw.isEmpty, !raw.allSatisfy({ $0 == "#" }) else { return }
 
-            let hashCount = trimmed.prefix(while: { $0 == "#" }).count
-            guard hashCount >= 1, hashCount <= 6 else { continue }
-
-            let afterHashes = trimmed.dropFirst(hashCount)
-            guard afterHashes.isEmpty || afterHashes.hasPrefix(" ") else { continue }
-
-            let rawText = String(afterHashes.drop(while: { $0 == " " }))
-                .replacingOccurrences(of: #"\s+#*\s*$"#, with: "", options: .regularExpression)
-
-            if rawText.isEmpty { continue }
-
-            let plainText = stripInlineMarkdown(rawText)
-            let id = kebabCased(plainText)
-
-            headings.append(DocumentHeading(
-                id: id,
-                level: hashCount,
-                text: plainText,
-                lineIndex: index
-            ))
-        }
-
-        return headings
-    }
-
-    private static func stripInlineMarkdown(_ text: String) -> String {
-        var result = text
-
-        // Links: [text](url) → text
-        result = result.replacingOccurrences(
-            of: #"\[([^\]]*)\]\([^\)]*\)"#,
-            with: "$1",
-            options: .regularExpression
-        )
-        // Images: ![alt](url) → alt
-        result = result.replacingOccurrences(
-            of: #"!\[([^\]]*)\]\([^\)]*\)"#,
-            with: "$1",
-            options: .regularExpression
-        )
-        // Bold/italic: *** ** * ___ __ _
-        result = result.replacingOccurrences(
-            of: #"\*{1,3}|_{1,3}"#,
-            with: "",
-            options: .regularExpression
-        )
-        // Strikethrough: ~~text~~ → text
-        result = result.replacingOccurrences(
-            of: "~~",
-            with: ""
-        )
-        // Inline code: `code` → code
-        result = result.replacingOccurrences(
-            of: "`",
-            with: ""
-        )
-
-        return result
-    }
-
-    /// Split by runs of non-alphanumerics, lowercase each component, join with "-"
-    /// Matches the JS kebabCase: str.split(/[^a-zA-Z0-9]+/).filter(…).join('-')
-    private static func kebabCased(_ string: String) -> String {
-        string
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+        let linksStripped = raw.utf8.contains(91) ? Self.replacing(in: raw, regex: Self.inlineLinks, with: "$1") : raw
+        let text = Self.replacing(in: linksStripped, regex: Self.inlineMarkers)
+        let anchor = text.components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
             .map { $0.lowercased() }
             .joined(separator: "-")
+        let occurrence = occurrences[anchor, default: 0]
+        occurrences[anchor] = occurrence + 1
+        headings.append(DocumentHeading(anchor: anchor, occurrence: occurrence, level: level, text: text))
+    }
+
+    private static func replacing(in text: String, regex: NSRegularExpression, with replacement: String = "") -> String {
+        regex.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: text.utf16.count), withTemplate: replacement)
     }
 }
