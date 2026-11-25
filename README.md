@@ -12,9 +12,8 @@
 # Skimmy
 
 Skimmy is a native Markdown editor and viewer for macOS. Open a README, a set
-of notes, or a long draft and jump straight to the section you need. In the
-current source build, you can edit right on the formatted page or switch to
-the Markdown syntax whenever you need it.
+of notes, or a long draft and jump straight to the section you need. Edit right
+on the formatted page or switch to Markdown source whenever you need it.
 
 <p align="center">
   <a href="https://github.com/giulioc84/skimmy_markdown/releases/latest"><b>Download for Mac</b></a>
@@ -23,10 +22,6 @@ the Markdown syntax whenever you need it.
   &nbsp;·&nbsp; <a href="CHANGELOG.md">Changelog</a>
   &nbsp;·&nbsp; <a href="https://github.com/giulioc84/skimmy_markdown/issues">Report a bug</a>
 </p>
-
-The public download is **1.0.0**. The screenshots show that release. Build
-from `main` for formatted editing, manual appearance settings, and the later
-[preview fixes](CHANGELOG.md#101--2026-11-21).
 
 <table align="center">
   <tr>
@@ -39,7 +34,9 @@ from `main` for formatted editing, manual appearance settings, and the later
   </tr>
 </table>
 
-## Highlights on main
+<p align="center"><sub>Screenshots from Skimmy 1.0.0</sub></p>
+
+## Highlights
 
 - **Edit the formatted page.** Change headings, emphasis, inline code, lists,
   and links from the Format menu. Check off tasks directly in the document.
@@ -59,8 +56,10 @@ from `main` for formatted editing, manual appearance settings, and the later
 2. Unzip it and drag **Skimmy.app** into **Applications**.
 3. Open Skimmy and press **⌘O** to open a Markdown file.
 
+The download is signed with Apple Developer ID and notarized by Apple.
+
 <details>
-<summary>Keyboard shortcuts on main</summary>
+<summary>Keyboard shortcuts</summary>
 
 | Shortcut | Action |
 | --- | --- |
