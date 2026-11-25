@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/banner.png" alt="Skimmy, a Markdown editor for macOS. Write on the formatted page." width="760">
+  <img src=".github/banner.png" alt="Skimmy. Read Markdown. Edit as needed. Fast, minimal Markdown for macOS." width="760">
 </p>
 
 <p align="center">
@@ -11,9 +11,10 @@
 
 # Skimmy
 
-**Fast, minimal Markdown editing for Mac.** Skimmy puts the page first, with a
-compact native toolbar and light and dark appearances. Edit directly on the
-formatted page or switch to Markdown source when you want the exact syntax.
+**A fast, minimal Markdown reader for Mac.** Open a file and start reading
+in a clean, native window. Use the sidebar to jump between headings, or hide
+it to focus on the page. Choose **Edit** to make changes directly on the
+formatted page, or **Source** to work with the Markdown syntax.
 
 <p align="center">
   <a href="https://github.com/giulioc84/skimmy_markdown/releases/latest"><b>Download for Mac</b></a>
@@ -38,12 +39,12 @@ formatted page or switch to Markdown source when you want the exact syntax.
 
 ## Highlights
 
-- **Edit the formatted page.** Change headings, emphasis, inline code, lists,
-  and links from the Format menu. Check off tasks directly in the document.
 - **Read GitHub-flavored Markdown.** Tables, code blocks, and task lists render
-  in Read mode. Use Source for precise control over Markdown syntax.
-- **Find your place.** Jump to a heading or browse links from the sidebar. In
-  Edit, replace the current search match or all matches at once.
+  in Read mode, where documents open by default.
+- **Find your place.** Search the page, jump to a heading, or browse links from
+  the sidebar.
+- **Edit the formatted page.** Format headings, emphasis, inline code, lists,
+  and links. Check off tasks or use Find and Replace in Edit mode.
 - **Open and save ordinary Markdown files.** Skimmy supports `.md`,
   `.markdown`, and `.mdown` with standard macOS document commands.
 - **Make the page easier to read.** Choose System, Light, or Dark in Settings
