@@ -15,7 +15,22 @@ Skimmy follows [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- Edit directly on the formatted Markdown page. Read and Source remain
+  available from the same toolbar.
+- Format headings, emphasis, code, lists, and links. Check off tasks and use
+  Find and Replace in Edit.
+- Choose System, Light, or Dark in Settings and open the offline guide from
+  Help.
+
+### Fixed
+
+- Open links with a click in the document.
+- Keep the Edit and Window menus stable when switching documents and modes.
+
+The GitHub download is still [1.0.0]. These changes are available when
+building from `main`.
 
 ---
 
@@ -78,5 +93,5 @@ opens cleanly on any Mac (no Gatekeeper warning).
 - XcodeGen-based project generation from `project.yml`.
 - Proprietary license (All Rights Reserved).
 
-[Unreleased]: https://github.com/giulioc84/skimmy_markdown/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/giulioc84/skimmy_markdown/compare/fa45b05...main
 [1.0.0]: https://github.com/giulioc84/skimmy_markdown/releases/tag/v1.0.0
